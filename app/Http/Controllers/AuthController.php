@@ -3,14 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\VerificationController;
+use App\Mail\MailController;
 
 class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login']]);
+        $this->middleware('auth:api', ['except' => ['login','register']]);
+    
     }
     
     public function login(Request $request){
@@ -24,32 +30,47 @@ class AuthController extends Controller
         }
 
         if (! $token = auth()->attempt($validator->validated())) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([
+            'error' => 'Unauthorized',
+            'message'=> 'Email or password not dafaut'
+        ], 401);
         }
-
         return $this->createNewToken($token);
     }
 
     public function register(Request $request) {
+        
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|between:2,100',
             'email' => 'required|string|email|max:100|unique:users',
             'password' => 'required|string|confirmed|min:6',
+            'password_confirmation' => 'required|min:6',
         ]);
-
         if($validator->fails()){
-            return response()->json($validator->errors()->toJson(), 400);
+            return response()->json($validator->errors(), 400);
         }
 
         $user = User::create(array_merge(
                     $validator->validated(),
                     ['password' => bcrypt($request->password)]
                 ));
+       
+            try {
+                if($user){
+                    Mail::mailer('smtp')->to($user->email)->send(new MailController($user));
 
-        return response()->json([
-            'message' => 'User successfully registered',
-            'user' => $user
-        ], 201);
+                    return response()->json([
+                        'message' => 'User successfully registered',
+                        'user' => $user
+                    ], 201);
+                }
+            } catch (\Exception $th) {
+                return response()->json([
+                    'message' => 'could not send email verification email,plase try again', 
+                ], 201);
+            }
+        
+        
     }
 
     
@@ -97,4 +118,47 @@ class AuthController extends Controller
             'user' => $user,
         ], 201);
     }
+
+    public function resend(Request $request)
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+
+            return response(['message'=>'Already verified']);
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        if ($request->wantsJson()) {
+            return response(['message' => 'Email Sent']);
+        }
+
+        return back()->with('resent', true);
+    }
+
+
+    
+  
+    public function verify(Request $request)
+    {
+        auth()->loginUsingId($request->route('id'));
+
+        if ($request->route('id') != $request->user()->getKey()) {
+            throw new AuthorizationException();
+        }
+
+        if ($request->user()->hasVerifiedEmail()) {
+
+            return response(['message'=>'Already verified']);
+
+            // return redirect($this->redirectPath());
+        }
+
+        if ($request->user()->markEmailAsVerified()) {
+            event(new Verified($request->user()));
+        }
+
+        return response(['message'=>'Successfully verified']);
+
+    }
+    
 }
