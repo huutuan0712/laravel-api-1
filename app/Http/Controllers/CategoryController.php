@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
@@ -36,11 +37,31 @@ class CategoryController extends Controller
         ]);
         if($validator->fails()){
             return response()->json($validator->errors());
+        }else{
+            $filename ="";
+            if($request->file('image')){
+                $filename =$request->file('image')->store('category', 'public');
+            }else{
+                $filename=null;
+            }
+            $category =  Category::create([
+                'name'=> $request->name,
+                'slug'=> $request->slug,
+                'image'=>$filename
+            ]);
+            if($category){
+                return response()->json([
+                    'success'=>true,
+                    'message'=>"Category Add Successfufly",
+                ]);
+            }else{
+                return response()->json([
+                    'success'=>false,
+                    'message'=>"Some Problem",
+                ]);
+            }
         }
-        $category = new Category();
-        $category->fill($request->all());
-        $category->save();
-        return response()->json($category,200);
+      
     }
     public function edit($id){
         try {
@@ -74,13 +95,33 @@ class CategoryController extends Controller
                 'message'=>$validator->errors()->all(),
             ]);
         }else{
-            $category =  Category::find($id);
-            $category->fill($request->all());
-            $category->update();
+            $category = Category::find($id);
+            $filename = "";
+            $destination = public_path('storage\\' . $category->image);
+            if ($request->file('new_image')) {
+                if (File::exists($destination)) {
+                    File::delete($destination);
+                }
+                $filename = $request->file('new_image')->store('category', 'public');
+            } else {
+                $filename = $request->old_image;
+            }
+            $category->name = $request ->name;
+            $category->slug = $request ->slug;
+            $category->slug = $request ->status;
+            $category->image = $filename;
+            $result= $category->save();
+           if($result){
+                return response()->json([
+                    'success'=>true,
+                    'message'=>"Category Update Successfufly",
+                ]);
+           }else {
             return response()->json([
-                'success'=>true,
-                'message'=>"Category Update Successfufly",
+                'success' => false,
+                'message' => "Some Problem",
             ]);
+            }
         }
       
        } catch (Exception $e) {

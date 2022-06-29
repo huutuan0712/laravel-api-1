@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
@@ -40,13 +41,34 @@ class ProductController extends Controller
                 'message'=>$validator->errors()->all(),
             ]);
         }else{
-            $product = new Product();
-            $product->fill($request->all());
-            $product->save();
-            return response()->json([
-                'success'=>true,
-                'message'=>"Product Add Successfufly",
+            $filename ="";
+            if($request->file('image')){
+                $filename =$request->file('image')->store('product', 'public');
+            }else{
+                $filename=null;
+            }
+            $product =  Product::create([
+               'cate_id'=>$request->cate_id,
+               'name'=>$request->name,
+               'slug'=>$request->name,
+               'description'=>$request->name,
+               'price'=>$request->name,
+               'image'=>$filename,
+               'qty'=>$request->name,
+
             ]);
+            $product->save();
+            if($product){
+                return response()->json([
+                    'success'=>true,
+                    'message'=>"Product Add Successfufly",
+                ]);
+            }else{
+                return response()->json([
+                    'success' => false,
+                    'message' => "Some Problem",
+                ]);
+            }
         }
       
        } catch (Exception $e) {
@@ -92,12 +114,34 @@ class ProductController extends Controller
             ]);
         }else{
             $product = Product::find($id);
-            $product->fill($request->all());
-            $product->update();
+            $filename = "";
+            $destination = public_path('storage\\' . $product->image);
+            if ($request->file('new_image')) {
+                if (File::exists($destination)) {
+                    File::delete($destination);
+                }
+                $filename = $request->file('new_image')->store('product', 'public');
+            } else {
+                $filename = $request->old_image;
+            }
+            $product->cate_id = $request->cate_id;
+            $product->name = $request->name;
+            $product->slug = $request->slug;
+            $product->price = $request->price;
+            $product->image = $filename;
+            $product->qty = $request->qty;
+            $result = $product->save();
+            if($result){
+                return response()->json([
+                    'success'=>true,
+                    'message'=>"Product Update Successfufly",
+                ]);
+           }else {
             return response()->json([
-                'success'=>true,
-                'message'=>"Product Update Successfufly",
+                'success' => false,
+                'message' => "Some Problem",
             ]);
+            }
         }
      
       } catch (Exception $e) {
