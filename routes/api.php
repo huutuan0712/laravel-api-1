@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\VerificationController;
 
 use Illuminate\Http\Request;
@@ -36,9 +38,21 @@ Route::group([
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
-    Route::get('/user-profile', [AuthController::class, 'userProfile']);
     Route::post('/change-pass', [AuthController::class, 'changePassWord']);   
     
-    
-  
 });
+  
+// PRODUCT
+Route::get('/products',[ProductController::class,'index']);
+Route::post('/product',[ProductController::class,'create']);
+Route::get('/product/{id}',[ProductController::class,'edit']);
+Route::put('/product/{id}',[ProductController::class,'update']);
+Route::delete('/product/{id}',[ProductController::class,'destroy']);
+Route::get('/product/{search}',[ProductController::class,'search']);
+// CATEGORY
+Route::get('/categorys',[CategoryController::class,'index']);
+ Route::post('/category',[CategoryController::class,'create']);
+ Route::get('/category/{id}',[CategoryController::class,'edit']);
+ Route::post('/category/{id}',[CategoryController::class,'update']);
+ Route::delete('/category/{id}',[CategoryController::class,'destroy']);
+ Route::get('/category/{search}',[CategoryController::class,'search']);
