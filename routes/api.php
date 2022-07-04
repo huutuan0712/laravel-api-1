@@ -46,7 +46,7 @@ Route::group([
 Route::get('/products',[ProductController::class,'index']);
 Route::post('/product',[ProductController::class,'create']);
 Route::get('/product/{id}',[ProductController::class,'edit']);
-Route::put('/product/{id}',[ProductController::class,'update']);
+Route::post('/product/{id}',[ProductController::class,'update']);
 Route::delete('/product/{id}',[ProductController::class,'destroy']);
 Route::get('/product/{search}',[ProductController::class,'search']);
 // CATEGORY

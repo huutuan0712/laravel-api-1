@@ -38,17 +38,18 @@ class CategoryController extends Controller
         if($validator->fails()){
             return response()->json($validator->errors());
         }else{
-            $filename ="";
-            if($request->file('image')){
-                $filename =$request->file('image')->store('category', 'public');
-            }else{
-                $filename=null;
+            $category = new Category();
+            if($request->hasFile('image')){
+                $file =$request->file('image');
+                $ext =$file->getClientOriginalExtension();
+                $filename= time().'.'.$ext;
+                $file->move('assets/uploads/category/',$filename );
+                $category->image = 'http://127.0.0.1:8000/assets/uploads/category/'.$filename;
             }
-            $category =  Category::create([
-                'name'=> $request->name,
-                'slug'=> $request->slug,
-                'image'=>$filename
-            ]);
+         
+            $category->name = $request->input('name');
+            $category->slug = $request->input('slug');
+            $category->save();
             if($category){
                 return response()->json([
                     'success'=>true,
@@ -84,9 +85,9 @@ class CategoryController extends Controller
        try {
         $validator = Validator::make($request->all(),[
           
-            'name'=>' required|string | max:191',
-            'slug'=>' required |string | max:191',
-            'image'=>'required',
+            'name'=>' nullable|string | max:191',
+            'slug'=>' nullable |string | max:191',
+            'image'=>'nullable',
             
         ]);
         if($validator->fails()){
@@ -95,22 +96,33 @@ class CategoryController extends Controller
                 'message'=>$validator->errors()->all(),
             ]);
         }else{
-            $category = Category::find($id);
-            $filename = "";
-            $destination = public_path('storage\\' . $category->image);
-            if ($request->file('new_image')) {
-                if (File::exists($destination)) {
-                    File::delete($destination);
+            $category =Category::find($id);
+            if($request->hasFile('image')){
+                $path='assets/uploads/category/'.$category->image;
+                if(File::exists($path)){
+                    File::delete($path);
+                    $file =$request->file('image');
+                    $ext =$file->getClientOriginalExtension();
+                    $filename= time().'.'.$ext;
+                    $file->move('assets/uploads/category/',$filename );
+                    $category->image ='http://127.0.0.1:8000/assets/uploads/category/' .$filename;
+                }else{
+                    $file =$request->file('image');
+                    $ext =$file->getClientOriginalExtension();
+                    $filename= time().'.'.$ext;
+                    $file->move('assets/uploads/category/',$filename );
+                    $category->image ='http://127.0.0.1:8000/assets/uploads/category/' .$filename;
                 }
-                $filename = $request->file('new_image')->store('category', 'public');
-            } else {
-                $filename = $request->old_image;
             }
-            $category->name = $request ->name;
-            $category->slug = $request ->slug;
-            $category->slug = $request ->status;
-            $category->image = $filename;
-            $result= $category->save();
+           if($request->input('name')){
+            $file =$request->input('name');
+            $category ->name = $file;
+           }
+           if($request->input('slug')){
+            $file =$request->input('slug');
+            $category ->slug = $file;
+           }
+            $result= $category->update();
            if($result){
                 return response()->json([
                     'success'=>true,

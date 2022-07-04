@@ -13,8 +13,21 @@ class ProductController extends Controller
 
     public function index()
     {
-        $product = Product::orderBy('id','desc')->with('category')->get();
-        return response()->json($product,200);
+      
+        try {
+            $product = Product::orderBy('id','desc')->with('category')->get();
+            if($product){
+                return response()->json([
+                    'success'=>true,
+                    'product'=>$product
+                ]);
+            }
+        } catch (Exception $e) {
+            return response()->json([
+                'success'=>false,
+                'message'=>$e->getMessage(),
+            ]);
+    }
     }
 
     /**
@@ -26,9 +39,10 @@ class ProductController extends Controller
     {
        try {
         $validator = Validator::make($request->all(),[
-            'cate_id'=>' required|unique:categories,id',
+            'cate_id'=>' required',
             'name'=>' required|string | max:191',
             'slug'=>' required |string | max:191',
+            'size'=>' required |string | max:191',
             'description'=>' required |string | max:191',
             'price'=>' required |string | max:191',
             'image'=>['required'],
@@ -41,22 +55,31 @@ class ProductController extends Controller
                 'message'=>$validator->errors()->all(),
             ]);
         }else{
-            $filename ="";
-            if($request->file('image')){
-                $filename =$request->file('image')->store('product', 'public');
-            }else{
-                $filename=null;
+            $product = new Product();
+            if($request->hasFile('image')){
+                $file =$request->file('image');
+                $ext =$file->getClientOriginalExtension();
+                $filename= time().'.'.$ext;
+                $file->move('assets/uploads/product/',$filename );
+                $product->image = 'http://127.0.0.1:8000/assets/uploads/product/'.$filename;
             }
-            $product =  Product::create([
-               'cate_id'=>$request->cate_id,
-               'name'=>$request->name,
-               'slug'=>$request->name,
-               'description'=>$request->name,
-               'price'=>$request->name,
-               'image'=>$filename,
-               'qty'=>$request->name,
-
-            ]);
+            // foreach($request->file('image') as $file){
+            //     $ext =$file->getClientOriginalExtension();
+            //     $filename= time().'.'.$ext;
+            //     $file->move('assets/uploads/product/',$filename );
+            //     $product->image = 'http://127.0.0.1:8000/assets/uploads/product/'.$filename;
+            //     product_Image::create([
+            //         'product_id'=>$product->id,
+            //         'filename'=>$filename
+            //     ]);
+            // }
+            $product->cate_id = $request->cate_id;
+            $product->name = $request->name;
+            $product->slug = $request->slug;
+            $product->size = $request->size;
+            $product->description = $request->description;
+            $product->price = $request->price;
+            $product->qty = $request->qty;
             $product->save();
             if($product){
                 return response()->json([
@@ -100,12 +123,12 @@ class ProductController extends Controller
       try {
         $validator = Validator::make($request->all(),[
             'cate_id'=>' required|unique:categories,id',
-            'name'=>' required|string | max:191',
-            'slug'=>' required |string | max:191',
-            'description'=>' required |string | max:191',
-            'price'=>' required |string | max:191',
-            'image'=>['required'],
-            'qty'=>' required |string | max:191',
+            'name'=>' nullable|string | max:191',
+            'slug'=>' nullable |string | max:191',
+            'description'=>' nullable |string | max:191',
+            'price'=>' nullable |string | max:191',
+            'image'=>'nullable',
+            'qty'=>'required |string | max:191',
         ]);
         if($validator->fails()){
             return response()->json([
@@ -114,23 +137,54 @@ class ProductController extends Controller
             ]);
         }else{
             $product = Product::find($id);
-            $filename = "";
-            $destination = public_path('storage\\' . $product->image);
-            if ($request->file('new_image')) {
-                if (File::exists($destination)) {
-                    File::delete($destination);
+            if($request->hasFile('image')){
+                $path='assets/uploads/product/'.$product->image;
+                if(File::exists($path)){
+                    File::delete($path);
+                    $file =$request->file('image');
+                    $ext =$file->getClientOriginalExtension();
+                    $filename= time().'.'.$ext;
+                    $file->move('assets/uploads/category/',$filename );
+                    $product->image ='http://127.0.0.1:8000/assets/uploads/product/' .$filename;
+                }else{
+                    $file =$request->file('image');
+                    $ext =$file->getClientOriginalExtension();
+                    $filename= time().'.'.$ext;
+                    $file->move('assets/uploads/category/',$filename );
+                    $product->image ='http://127.0.0.1:8000/assets/uploads/product/' .$filename;
                 }
-                $filename = $request->file('new_image')->store('product', 'public');
-            } else {
-                $filename = $request->old_image;
             }
-            $product->cate_id = $request->cate_id;
-            $product->name = $request->name;
-            $product->slug = $request->slug;
-            $product->price = $request->price;
-            $product->image = $filename;
-            $product->qty = $request->qty;
-            $result = $product->save();
+            if($request->input('cate_id')){
+                $file =$request->input('cate_id');
+                $product ->cate_id = $file;
+               }
+               
+            if($request->input('name')){
+                $file =$request->input('name');
+                $product ->name = $file;
+            }
+            if($request->input('slug')){
+                $file =$request->input('slug');
+                $product ->slug = $file;
+            }
+            if($request->input('size')){
+                $file =$request->input('size');
+                $product ->size = $file;
+            }
+            if($request->input('description')){
+                $file =$request->input('description');
+                $product ->description = $file;
+            }
+            if($request->input('price')){
+                $file =$request->input('price');
+                $product ->price = $file;
+            }
+            if($request->input('qty')){
+                $file =$request->input('qty');
+                $product ->qty = $file;
+            }
+           
+           $result= $product->update();
             if($result){
                 return response()->json([
                     'success'=>true,
