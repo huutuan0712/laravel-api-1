@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\product_Image;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -56,23 +57,17 @@ class ProductController extends Controller
             ]);
         }else{
             $product = new Product();
+            $data = [];
             if($request->hasFile('image')){
-                $file =$request->file('image');
-                $ext =$file->getClientOriginalExtension();
-                $filename= time().'.'.$ext;
-                $file->move('assets/uploads/product/',$filename );
-                $product->image = 'http://127.0.0.1:8000/assets/uploads/product/'.$filename;
+                $files =$request->file('image');
+                foreach( $files as $file){
+                    $filename =time().'.'. $file->extension();
+                    $file ->move(public_path('assets/uploads/product/'),$filename );
+                    $data[] = 'http://127.0.0.1:8000/assets/uploads/category/'. $filename; 
+                }
+                
             }
-            // foreach($request->file('image') as $file){
-            //     $ext =$file->getClientOriginalExtension();
-            //     $filename= time().'.'.$ext;
-            //     $file->move('assets/uploads/product/',$filename );
-            //     $product->image = 'http://127.0.0.1:8000/assets/uploads/product/'.$filename;
-            //     product_Image::create([
-            //         'product_id'=>$product->id,
-            //         'filename'=>$filename
-            //     ]);
-            // }
+         
             $product->cate_id = $request->cate_id;
             $product->name = $request->name;
             $product->slug = $request->slug;
@@ -80,7 +75,10 @@ class ProductController extends Controller
             $product->description = $request->description;
             $product->price = $request->price;
             $product->qty = $request->qty;
+            $product->image =json_encode($data);
             $product->save();
+            $product->image = json_decode($product->image,true);
+          
             if($product){
                 return response()->json([
                     'success'=>true,

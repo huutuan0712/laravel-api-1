@@ -7,6 +7,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Optional;
 
 class CategoryController extends Controller
 {
@@ -44,11 +45,10 @@ class CategoryController extends Controller
                 $ext =$file->getClientOriginalExtension();
                 $filename= time().'.'.$ext;
                 $file->move('assets/uploads/category/',$filename );
-                $category->image = 'http://127.0.0.1:8000/assets/uploads/category/'.$filename;
+                $category->image ='http://127.0.0.1:8000/assets/uploads/category/' .$filename;
             }
-         
-            $category->name = $request->input('name');
-            $category->slug = $request->input('slug');
+            $category->name = $request->name;
+            $category->slug = $request->slug;
             $category->save();
             if($category){
                 return response()->json([
@@ -80,6 +80,7 @@ class CategoryController extends Controller
             ]);
         }
     }
+
     public function update(Request $request,$id)
     {
        try {
@@ -146,7 +147,7 @@ class CategoryController extends Controller
     public function destroy($id)
     {
         try {
-            $result =Category::findOrFail($id)->delete();
+            $result =Category::find($id)->delete();
             if($result){
                 return response()->json([
                     'success'=>true,

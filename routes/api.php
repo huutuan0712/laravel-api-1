@@ -4,7 +4,6 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\VerificationController;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -56,3 +55,4 @@ Route::get('/categorys',[CategoryController::class,'index']);
  Route::post('/category/{id}',[CategoryController::class,'update']);
  Route::delete('/category/{id}',[CategoryController::class,'destroy']);
  Route::get('/category/{search}',[CategoryController::class,'search']);
+// SUB CATEGORY
