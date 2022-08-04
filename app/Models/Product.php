@@ -16,17 +16,12 @@ class Product extends Model
         'size',
         'description',
         'price',
-        'image',
+        'image'=>'json',
         'qty',
         
     ];
     public function category(){
         return $this->belongsTo(Category::class,'cate_id','id');
     }
- 
-    public function setFilenamesAttribute($value)
-    {
-        $this->attributes['image'] = json_encode($value);
-    }
-    
+  
 }

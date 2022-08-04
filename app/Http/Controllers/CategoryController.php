@@ -43,7 +43,7 @@ class CategoryController extends Controller
             if($request->hasFile('image')){
                 $file =$request->file('image');
                 $ext =$file->getClientOriginalExtension();
-                $filename= time().'.'.$ext;
+                $filename = rand().'.'.$ext;
                 $file->move('assets/uploads/category/',$filename );
                 $category->image ='http://127.0.0.1:8000/assets/uploads/category/' .$filename;
             }
@@ -104,16 +104,11 @@ class CategoryController extends Controller
                     File::delete($path);
                     $file =$request->file('image');
                     $ext =$file->getClientOriginalExtension();
-                    $filename= time().'.'.$ext;
-                    $file->move('assets/uploads/category/',$filename );
-                    $category->image ='http://127.0.0.1:8000/assets/uploads/category/' .$filename;
-                }else{
-                    $file =$request->file('image');
-                    $ext =$file->getClientOriginalExtension();
-                    $filename= time().'.'.$ext;
+                    $filename= rand().'.'.$ext;
                     $file->move('assets/uploads/category/',$filename );
                     $category->image ='http://127.0.0.1:8000/assets/uploads/category/' .$filename;
                 }
+             
             }
            if($request->input('name')){
             $file =$request->input('name');

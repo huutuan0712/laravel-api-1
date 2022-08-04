@@ -2,26 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\product_Image;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
-
+  
     public function index()
     {
       
         try {
             $product = Product::orderBy('id','desc')->with('category')->get();
+            // $product[5]->image = json_decode($product[5]->image,true);
+            // $product = json_decode($product,true);
+            // var_dump($product);die;
+   
             if($product){
                 return response()->json([
                     'success'=>true,
-                    'product'=>$product
+                    'product'=>$product 
+                   
                 ]);
+                
             }
         } catch (Exception $e) {
             return response()->json([
@@ -30,7 +38,29 @@ class ProductController extends Controller
             ]);
     }
     }
-
+    public function getProductbyCategory($slug){
+        try {
+            if(Category ::where('slug',$slug)->exists()){
+                $category = Category ::where('slug',$slug)->first();
+                $products = Product::where('cate_id',$category->id)->get();
+                return response()->json([
+                    'success'=>true,
+                    'product'=>$products,
+                ]);
+            }else{
+                return response()->json([
+                    'success' => false,
+                    'message' => "Some Problem",
+                ]);
+            }
+          
+        } catch (Exception $e) {
+            return response()->json([
+                'success'=>false,
+                'error'=>$e->getMessage(),
+            ]);
+        }
+    }
     /**
      * Show the form for creating a new resource.
      *
@@ -44,9 +74,9 @@ class ProductController extends Controller
             'name'=>' required|string | max:191',
             'slug'=>' required |string | max:191',
             'size'=>' required |string | max:191',
-            'description'=>' required |string | max:191',
+            'description'=>' required |string | max:2000',
             'price'=>' required |string | max:191',
-            'image'=>['required'],
+            'image'=>'required',
             'qty'=>' required |string | max:191',
            
         ]);
@@ -57,17 +87,15 @@ class ProductController extends Controller
             ]);
         }else{
             $product = new Product();
-            $data = [];
+             $data = [];
             if($request->hasFile('image')){
                 $files =$request->file('image');
                 foreach( $files as $file){
-                    $filename =time().'.'. $file->extension();
-                    $file ->move(public_path('assets/uploads/product/'),$filename );
-                    $data[] = 'http://127.0.0.1:8000/assets/uploads/category/'. $filename; 
+                    $filename =rand().'.'. $file->getClientOriginalExtension();
+                    $file ->move('assets/uploads/product/',$filename );
+                    $data[]='http://127.0.0.1:8000/assets/uploads/product/'. $filename; 
                 }
-                
             }
-         
             $product->cate_id = $request->cate_id;
             $product->name = $request->name;
             $product->slug = $request->slug;
@@ -75,10 +103,9 @@ class ProductController extends Controller
             $product->description = $request->description;
             $product->price = $request->price;
             $product->qty = $request->qty;
-            $product->image =json_encode($data);
+            $product->image=json_encode($data);
             $product->save();
-            $product->image = json_decode($product->image,true);
-          
+            
             if($product){
                 return response()->json([
                     'success'=>true,
@@ -123,7 +150,7 @@ class ProductController extends Controller
             'cate_id'=>' required|unique:categories,id',
             'name'=>' nullable|string | max:191',
             'slug'=>' nullable |string | max:191',
-            'description'=>' nullable |string | max:191',
+            'description'=>' nullable |string | max:2000',
             'price'=>' nullable |string | max:191',
             'image'=>'nullable',
             'qty'=>'required |string | max:191',
@@ -135,28 +162,21 @@ class ProductController extends Controller
             ]);
         }else{
             $product = Product::find($id);
+            $data = [];
             if($request->hasFile('image')){
                 $path='assets/uploads/product/'.$product->image;
                 if(File::exists($path)){
                     File::delete($path);
-                    $file =$request->file('image');
-                    $ext =$file->getClientOriginalExtension();
-                    $filename= time().'.'.$ext;
-                    $file->move('assets/uploads/category/',$filename );
-                    $product->image ='http://127.0.0.1:8000/assets/uploads/product/' .$filename;
-                }else{
-                    $file =$request->file('image');
-                    $ext =$file->getClientOriginalExtension();
-                    $filename= time().'.'.$ext;
-                    $file->move('assets/uploads/category/',$filename );
-                    $product->image ='http://127.0.0.1:8000/assets/uploads/product/' .$filename;
+                    $files =$request->file('image');
+                    foreach( $files as $file){
+                        $filename =rand().'.'. $file->getClientOriginalExtension();
+                        $file ->move('assets/uploads/product/',$filename );
+                        $data[]='http://127.0.0.1:8000/assets/uploads/product/'. $filename; 
+                    }
                 }
             }
-            if($request->input('cate_id')){
-                $file =$request->input('cate_id');
-                $product ->cate_id = $file;
-               }
-               
+            
+            $product ->image = json_encode($data);
             if($request->input('name')){
                 $file =$request->input('name');
                 $product ->name = $file;
@@ -217,7 +237,7 @@ class ProductController extends Controller
             if($result){
                 return response()->json([
                     'success'=>true,
-                    'message'=>"Category Delete Successfufly",
+                    'message'=>"Product Delete Successfufly",
                 ]);
             }else{
                 return response()->json([
@@ -233,12 +253,29 @@ class ProductController extends Controller
         }
     }
     public function search($search){
+     
         try {
-            $products = Product::with('category')->where('name','LIKE','%'.$search.'%')->orderBy('id','desc')->get();
+            $products = Product::where('name','LIKE','%'.$search.'%')->orderBy('id','desc')->with('category')->get();
             if($products){
                 return response()->json([
                     'success'=>true,
                     'products'=>$products,
+                ]);
+            }
+        } catch (Exception $e) {
+            return response()->json([
+                'success'=>false,
+                'error'=>$e->getMessage(),
+            ]);
+        }
+    }
+    public function sortProduct(){
+        try {
+            $products = Product::orderBy('price','asc')->with('category')->get();
+            if($products){
+                return response()->json([
+                    'success'=>true,
+                    'product'=>$products,
                 ]);
             }
         } catch (Exception $e) {

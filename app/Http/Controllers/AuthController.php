@@ -9,13 +9,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\VerificationController;
+use App\Http\Requests\RequestHelper;
 use App\Mail\MailController;
-
+use App\Mail\SendMail;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Symfony\Component\HttpFoundation\Response;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Str;
 class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login','register']]);
+        $this->middleware('auth', ['except' => [
+            'login','register','logout','updateInformation','changePassWord','forgotPassword','updatePassword']]);
     
     }
     
@@ -54,7 +62,7 @@ class AuthController extends Controller
                     $validator->validated(),
                     ['password' => bcrypt($request->password)]
                 ));
-       
+
             try {
                 if($user){
                     Mail::mailer('smtp')->to($user->email)->send(new MailController($user));
@@ -72,7 +80,7 @@ class AuthController extends Controller
         
         
     }
-
+   
     
     public function logout() {
         auth()->logout();
@@ -80,8 +88,42 @@ class AuthController extends Controller
         return response()->json(['message' => 'User successfully signed out']);
     }
 
-    public function userProfile() {
-        return response()->json(auth()->user());
+    public function updateInformation(Request $request) {
+        $id =$request->id;
+        $user = User::find($id);
+        if($user){
+                if($request->hasFile('image')){
+                    $file =$request->file('image');
+                    $ext =$file->getClientOriginalExtension();
+                    $filename= rand().'.'.$ext;
+                    $file->move('assets/uploads/user/',$filename );
+                    $user->avatar ='http://127.0.0.1:8000/assets/uploads/user/' .$filename;
+                }
+                if($request->input('name')){
+                    $file =$request->input('name');
+                    $user ->name = $file;
+                }
+                if($request->input('address')){
+                    $file =$request->input('address');
+                    $user ->address = $file;
+                }
+                if($request->input('birthday')){
+                    $file =$request->input('birthday');
+                    $user ->birthday = $file;
+                }
+                if($request->input('phone')){
+                    $file =$request->input('phone');
+                    $user ->phone = $file;
+                }
+            
+            $user->update();
+        }else{
+            return response()->json([
+                'success' => false,
+                'message' => "Some Problem",
+            ]);
+        }
+        return response()->json(['user'=>$user]);
     }
 
 
@@ -99,66 +141,85 @@ class AuthController extends Controller
     }
 
     public function changePassWord(Request $request) {
-        $validator = Validator::make($request->all(), [
-            'old_password' => 'required|string|min:6',
-            'new_password' => 'required|string|confirmed|min:6',
-        ]);
-
-        if($validator->fails()){
-            return response()->json($validator->errors(), 400);
-        }
-        $userId = auth()->user()->id;
-
+        // $validator = Validator::make($request->all(), [
+        //     'newPassword' => 'required|string|confirmed|min:6',
+        //     'confirmPassword' => 'required|min:6',
+        //     'oldPassword' => 'required|min:6'
+        // ]);
+        $userId = $request->id;
+        $newPassword =$request->newPassword;
         $user = User::where('id', $userId)->update(
-                    ['password' => bcrypt($request->new_password)]
-                );
-
+            ['password' => bcrypt( $newPassword)]
+        );
         return response()->json([
             'message' => 'User successfully changed password',
-            'user' => $user,
         ], 201);
     }
-
-    public function resend(Request $request)
-    {
-        if ($request->user()->hasVerifiedEmail()) {
-
-            return response(['message'=>'Already verified']);
+    // FORGOT PASSWORD
+     public function forgotPassword(Request $request){
+        if(!$this->validEmail($request->email)) {
+            return response()->json([
+                'message' => 'Email not found.'
+            ], Response::HTTP_NOT_FOUND);
+        } else {
+            $this->sendEmail($request->email);
+            return response()->json([
+                'message' => 'Password reset mail has been sent.'
+            ], Response::HTTP_OK);            
         }
-
-        $request->user()->sendEmailVerificationNotification();
-
-        if ($request->wantsJson()) {
-            return response(['message' => 'Email Sent']);
-        }
-
-        return back()->with('resent', true);
     }
+    public function sendEmail ($email){
+        $token =$this ->createToken($email);
+        Mail::to($email)->send(new SendMail($token));
+    }
+    public function validEmail($email) {
+        return !!User::where('email', $email)->first();
+     }
 
-
-    
+    public function createToken($email){
+        $isToken = DB::table('password_resets')->where('email', $email)->first();
   
-    public function verify(Request $request)
-    {
-        auth()->loginUsingId($request->route('id'));
-
-        if ($request->route('id') != $request->user()->getKey()) {
-            throw new AuthorizationException();
+        if($isToken) {
+          return $isToken->token;
         }
-
-        if ($request->user()->hasVerifiedEmail()) {
-
-            return response(['message'=>'Already verified']);
-
-            // return redirect($this->redirectPath());
-        }
-
-        if ($request->user()->markEmailAsVerified()) {
-            event(new Verified($request->user()));
-        }
-
-        return response(['message'=>'Successfully verified']);
-
+  
+        $token = Str::random(80);;
+        $this->saveToken($token, $email);
+        return $token;
+      }
+      public function saveToken($token, $email){
+        DB::table('password_resets')->insert([
+            'email' => $email,
+            'token' => $token,
+            'created_at' => Carbon::now()            
+        ]);
     }
-    
+    //UPDATE PASSWORD
+    public function updatePassword(RequestHelper $request){
+        return $this->validateToken($request)->count() > 0 ? $this->DOIPASSWORD($request) : $this->noToken();
+    }
+
+    private function validateToken($request){
+        return DB::table('password_resets')->where([
+            'email' => $request->email,
+            'token' => $request->token
+        ]);
+    }
+
+    private function noToken() {
+        return response()->json([
+          'error' => 'Email or token does not exist.'
+        ],Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    private function DOIPASSWORD ($request) {
+        $user = User::whereEmail($request->email)->first();
+        $user->update([
+          'password'=>bcrypt($request->password)
+        ]);
+        $this->validateToken($request)->delete();
+        return response()->json([
+          'message' => 'Password changed successfully.'
+        ],Response::HTTP_CREATED);
+    }  
 }
